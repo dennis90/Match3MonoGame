@@ -7,6 +7,8 @@ namespace Match3Mono
 {
     public class Gem
     {
+        public bool DebugInfoEnabled = false;
+
         public const int GemSize = 64;
 
         // Callbacks
@@ -32,6 +34,7 @@ namespace Match3Mono
         private float rotationRad = 0f;
         private Color color = Color.White;
         private readonly Texture2D texture = null;
+        private readonly SpriteFont font;
 
         public Vector2 position;
 
@@ -41,12 +44,21 @@ namespace Match3Mono
         private const float DESTROY_SPEED = 1.3f;
         private const int ROTATION_SPEED = 45;
 
-        public Gem(int GemIndex, Texture2D texture, Vector2 position, Action onAnimationCompleted)
+        private float sizeFactor = 1f;
+
+        public Gem(
+            int GemIndex,
+            Texture2D texture,
+            Vector2 position,
+            Action onAnimationCompleted,
+            SpriteFont font
+        )
         {
             this.spriteIndex = GemIndex;
             this.texture = texture;
             this.onAnimationCompleted = onAnimationCompleted;
             this.position = position;
+            this.font = font;
         }
 
         public void Draw(SpriteBatch _spriteBatch)
@@ -56,10 +68,10 @@ namespace Match3Mono
             _spriteBatch.Draw(
                 texture,
                 new Rectangle(
-                    (int)(position.X + GemSize / 2),
-                    (int)(position.Y + GemSize / 2),
-                    GemSize,
-                    GemSize
+                    (int)((position.X + GemSize / 2) * sizeFactor),
+                    (int)((position.Y + GemSize / 2) * sizeFactor),
+                    (int)(GemSize * sizeFactor),
+                    (int)(GemSize * sizeFactor)
                 ),
                 null,
                 selected ? Color.HotPink : color,
@@ -68,6 +80,16 @@ namespace Match3Mono
                 SpriteEffects.None,
                 0f
             );
+
+            if (DebugInfoEnabled)
+            {
+                _spriteBatch.DrawString(
+                    font,
+                    (animating ? "Anim" : "") + (matching ? "Match" : ""),
+                    new Vector2(position.X, position.Y + 20),
+                    Color.Magenta
+                );
+            }
 
             // Reset after render
             rotationRad = 0f;
@@ -78,6 +100,15 @@ namespace Match3Mono
             this.UpdatedSelected((float)gameTime.ElapsedGameTime.TotalSeconds);
             this.UpdateTranslate((float)gameTime.ElapsedGameTime.TotalSeconds);
             this.UpdateMatchingProcess((float)gameTime.ElapsedGameTime.TotalSeconds);
+        }
+
+        public Vector2 GetDestiny()
+        {
+            if (moveToX > 0 || moveToY > 0)
+            {
+                return new Vector2(moveToX, moveToY);
+            }
+            return position;
         }
 
         public void SetSelected(bool nextSelect)
@@ -92,12 +123,10 @@ namespace Match3Mono
             this.moveToY = nextPosition.Y;
         }
 
-        public void Match(Action onMatchCompleted)
+        public void Match()
         {
             this.animating = true;
             this.matching = true;
-            this.queuedForMatch = true;
-            this.onMatchCompleted = onMatchCompleted;
         }
 
         public int SpriteIndex => this.spriteIndex;
@@ -119,14 +148,6 @@ namespace Match3Mono
                 }
                 rotationDeg += rotationDirection * delta;
                 rotationRad = MathHelper.ToRadians(rotationDeg);
-                Debug.WriteLine(
-                    "Should be animating___"
-                        + rotationDeg.ToString("0.00")
-                        + "___"
-                        + rotationRad.ToString("0.00")
-                        + "___"
-                        + delta.ToString("0.00")
-                );
             }
             else
             {
@@ -177,9 +198,15 @@ namespace Match3Mono
             }
 
             float step = delta * DESTROY_SPEED;
-            color *= step;
 
-            if (color.A > 10)
+            sizeFactor -= step;
+
+            if (DebugInfoEnabled)
+            {
+                Debug.WriteLine(sizeFactor.ToString("0.000"));
+            }
+
+            if (sizeFactor < 0.1)
             {
                 OnMatchDone();
             }
@@ -187,10 +214,13 @@ namespace Match3Mono
 
         private void OnMatchDone()
         {
-            animating = false;
+            if (animating)
+            {
+                onAnimationCompleted?.Invoke();
+            }
             matching = false;
             spriteIndex = -1;
-            onAnimationCompleted?.Invoke();
+            animating = false;
             onMatchCompleted?.Invoke();
         }
     }

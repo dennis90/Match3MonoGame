@@ -1,23 +1,23 @@
 ﻿using Microsoft.Xna.Framework;
 using Microsoft.Xna.Framework.Graphics;
 using Microsoft.Xna.Framework.Input;
-using System.Runtime.CompilerServices;
 
 namespace Match3Mono
 {
-    public class Game1 : Game
+    public class Match3Game : Game
     {
         private readonly GraphicsDeviceManager _graphics;
         private SpriteBatch _spriteBatch;
         private Texture2D[] piecesTextures;
         private GameBoard _board;
 
+        private SpriteFont font;
         private Texture2D background;
 
         const int ResolutionWidth = 1280;
         const int ResolutionHeight = 768;
 
-        public Game1()
+        public Match3Game()
         {
             _graphics = new GraphicsDeviceManager(this)
             {
@@ -32,8 +32,6 @@ namespace Match3Mono
 
         protected override void Initialize()
         {
-            // TODO: Add your initialization logic here
-            //_board = new GameBoard(piecesTextures);
             base.Initialize();
         }
 
@@ -53,6 +51,7 @@ namespace Match3Mono
             };
 
             background = Content.Load<Texture2D>("sky");
+            font = Content.Load<SpriteFont>("galleryFont");
         }
 
         protected override void Update(GameTime gameTime)
@@ -65,7 +64,12 @@ namespace Match3Mono
 
             if (Keyboard.GetState().IsKeyDown(Keys.F2))
             {
-                _board = new GameBoard(piecesTextures);
+                _board = new GameBoard(piecesTextures, font);
+            }
+
+            if (Keyboard.GetState().IsKeyDown(Keys.F3) && _board != null)
+            {
+                _board.DebugInfoEnabled = !_board.DebugInfoEnabled;
             }
 
             _board?.Update(gameTime);

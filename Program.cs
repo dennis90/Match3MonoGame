@@ -1,3 +1,2 @@
-﻿
-using var game = new Match3Mono.Game1();
+﻿using var game = new Match3Mono.Match3Game();
 game.Run();

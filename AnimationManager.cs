@@ -45,16 +45,20 @@ namespace Match3Mono
             enqueuedItems.Add(items);
         }
 
+        public int RunningAnimations => animationCount;
+
+        public int PendingBatches => enqueuedItems.Count;
+
         public AnimationItem[] GetAnimationItems()
         {
-            if (animationCount != 0 || enqueuedItems.Count == 0)
+            if (animationCount > 0 || enqueuedItems.Count == 0)
             {
                 return null;
             }
 
             var first = enqueuedItems[0];
+            this.animationCount = first.Length;
             enqueuedItems.RemoveAt(0);
-            this.animationCount += first.Length;
             return first;
         }
 
