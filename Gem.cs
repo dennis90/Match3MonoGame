@@ -34,7 +34,6 @@ namespace Match3Mono
         private float rotationRad = 0f;
         private Color color = Color.White;
         private readonly Texture2D texture = null;
-        private readonly SpriteFont font;
 
         public Vector2 position;
 
@@ -46,19 +45,12 @@ namespace Match3Mono
 
         private float sizeFactor = 1f;
 
-        public Gem(
-            int GemIndex,
-            Texture2D texture,
-            Vector2 position,
-            Action onAnimationCompleted,
-            SpriteFont font
-        )
+        public Gem(int GemIndex, Texture2D texture, Vector2 position, Action onAnimationCompleted)
         {
             this.spriteIndex = GemIndex;
             this.texture = texture;
             this.onAnimationCompleted = onAnimationCompleted;
             this.position = position;
-            this.font = font;
         }
 
         public void Draw(SpriteBatch _spriteBatch)
@@ -84,7 +76,7 @@ namespace Match3Mono
             if (DebugInfoEnabled)
             {
                 _spriteBatch.DrawString(
-                    font,
+                    AssetsLoader.GetInstance().GetFont("fontSm"),
                     (animating ? "Anim" : "") + (matching ? "Match" : ""),
                     new Vector2(position.X, position.Y + 20),
                     Color.Magenta

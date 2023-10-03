@@ -1,14 +1,14 @@
 ﻿using Microsoft.Xna.Framework;
+using Microsoft.Xna.Framework.Audio;
 using Microsoft.Xna.Framework.Graphics;
 using Microsoft.Xna.Framework.Input;
 using System;
 using System.Collections.Generic;
 using System.Diagnostics;
-using System.Linq;
 
 namespace Match3Mono
 {
-    public class GameBoard
+    public class GameBoard : Scene
     {
         const int BoardWidth = 8;
         const int BoardHeight = 8;
@@ -19,41 +19,65 @@ namespace Match3Mono
         private Gem[,] BoardState;
         private readonly AnimationManager animationManager = new();
         private readonly Random rand = new();
-        private readonly Texture2D[] textureList;
-        private readonly SpriteFont font;
+        private AssetsLoader assetsLoader;
         public int PlayerScore = 0;
 
         public bool DebugInfoEnabled = false;
 
         private bool firstClick = false;
-        Point? firstGem = null;
+        private Point? firstSelectedGem = null;
 
         private string _playedAnimation = "";
+        private Point[][] oneOffPatterns;
 
-        public GameBoard(Texture2D[] _textureList, SpriteFont _font)
+        private SoundEffect[] swapSounds;
+        private SoundEffectInstance music;
+
+        public GameBoard()
         {
-            this.textureList = _textureList;
-            this.font = _font;
-
             BoardState = new Gem[BoardWidth, BoardHeight];
+            assetsLoader = AssetsLoader.GetInstance();
+
+            swapSounds = assetsLoader.GetSoundEffectList("sound/Swap");
+
+            music = assetsLoader.GetSoundEffect("sound/Level1").CreateInstance();
+            music.IsLooped = true;
+            music.Volume = .3f;
+            music.Play();
 
             for (int x = 0; x < BoardWidth; x++)
             {
                 for (int y = 0; y < BoardHeight; y++)
                 {
-                    int textureIndex = rand.Next(0, textureList.Length);
+                    int textureIndex = rand.Next(0, assetsLoader.GetTextureList("gems").Length);
                     BoardState[x, y] = new Gem(
                         textureIndex,
-                        textureList[textureIndex],
+                        assetsLoader.GetTextureList("gems")[textureIndex],
                         new Vector2(
                             MarginX + (x * (Gem.GemSize + Padding)),
                             MarginY + (y * (Gem.GemSize + Padding))
                         ),
-                        animationManager.OnAnimationCompleted,
-                        font
+                        animationManager.OnAnimationCompleted
                     );
                 }
             }
+
+            oneOffPatterns = new Point[][]
+            {
+                new Point[] { new Point(0, 1), new Point(1, 0), new Point(2, 0) },
+                new Point[] { new Point(0, 1), new Point(1, 1), new Point(2, 0) },
+                new Point[] { new Point(0, 0), new Point(1, 1), new Point(2, 0) },
+                new Point[] { new Point(0, 1), new Point(1, 0), new Point(2, 1) },
+                new Point[] { new Point(0, 0), new Point(1, 0), new Point(2, 1) },
+                new Point[] { new Point(0, 0), new Point(1, 1), new Point(2, 1) },
+                new Point[] { new Point(0, 0), new Point(0, 2), new Point(0, 3) },
+                new Point[] { new Point(0, 0), new Point(0, 1), new Point(0, 3) }
+            };
+        }
+
+        public override void Destroy()
+        {
+            music.Stop();
         }
 
         private Gem[,] GetFilledBoard(Gem[,] board, bool animate = false)
@@ -72,17 +96,16 @@ namespace Match3Mono
                         continue;
                     }
 
-                    int textureIndex = rand.Next(0, textureList.Length);
+                    int textureIndex = rand.Next(0, assetsLoader.GetTextureList("gems").Length);
 
                     int xPos = x * (Gem.GemSize + Padding) + MarginX;
                     int yPos = y * (Gem.GemSize + Padding) + MarginY;
 
                     var nextGem = new Gem(
                         textureIndex,
-                        textureList[textureIndex],
+                        assetsLoader.GetTextureList("gems")[textureIndex],
                         new Vector2(xPos, animate ? Gem.GemSize * -1 : yPos),
-                        animationManager.OnAnimationCompleted,
-                        font
+                        animationManager.OnAnimationCompleted
                     );
 
                     nextBoard[x, y] = nextGem;
@@ -184,6 +207,43 @@ namespace Match3Mono
             return -1;
         }
 
+        private bool CanMakeMove(Gem[,] board)
+        {
+            for (int x = 0; x < BoardWidth; x++)
+            {
+                for (int y = 0; y < BoardHeight; y++)
+                {
+                    foreach (var pat in oneOffPatterns)
+                    {
+                        var firstGem = GemSpriteAt(board, new Point(x + pat[0].X, y + pat[0].Y));
+                        var secondGem = GemSpriteAt(board, new Point(x + pat[0].Y, y + pat[0].X));
+
+                        if (
+                            (
+                                firstGem != -1
+                                && firstGem
+                                    == GemSpriteAt(board, new Point(x + pat[1].X, y + pat[1].Y))
+                                && firstGem
+                                    == GemSpriteAt(board, new Point(x + pat[2].X, y + pat[2].Y))
+                            )
+                            || (
+                                secondGem != -1
+                                && secondGem
+                                    == GemSpriteAt(board, new Point(x + pat[1].Y, y + pat[1].X))
+                                && secondGem
+                                    == GemSpriteAt(board, new Point(x + pat[2].Y, y + pat[2].X))
+                            )
+                        )
+                        {
+                            return true;
+                        }
+                    }
+                }
+            }
+
+            return false;
+        }
+
         private static List<Point[]> GetMatches(Gem[,] board)
         {
             List<Point[]> GemsToRemove = new();
@@ -250,33 +310,40 @@ namespace Match3Mono
                 // Current gem not found or its not a valid swap
                 if (
                     gemIndex == null
-                    || (firstGem.HasValue && !IsValidSwap(gemIndex.Value, firstGem.Value))
+                    || (
+                        firstSelectedGem.HasValue
+                        && !IsValidSwap(gemIndex.Value, firstSelectedGem.Value)
+                    )
                 )
                 {
-                    if (firstGem.HasValue)
+                    if (firstSelectedGem.HasValue)
                     {
-                        BoardState[firstGem.Value.X, firstGem.Value.Y].SetSelected(false);
-                        firstGem = null;
+                        BoardState[firstSelectedGem.Value.X, firstSelectedGem.Value.Y].SetSelected(
+                            false
+                        );
+                        firstSelectedGem = null;
                     }
 
                     return;
                 }
 
-                if (!firstGem.HasValue)
+                if (!firstSelectedGem.HasValue)
                 {
                     BoardState[gemIndex.Value.X, gemIndex.Value.Y].SetSelected(true);
-                    firstGem = gemIndex.Value;
+                    firstSelectedGem = gemIndex.Value;
                 }
                 else // Is a valid swap, and the first gem is already selected
                 {
-                    BoardState[firstGem.Value.X, firstGem.Value.Y].SetSelected(false); // Clean selected status
+                    BoardState[firstSelectedGem.Value.X, firstSelectedGem.Value.Y].SetSelected(
+                        false
+                    ); // Clean selected status
                     Vector2 destinyPosition = new Vector2(
                         BoardState[gemIndex.Value.X, gemIndex.Value.Y].position.X,
                         BoardState[gemIndex.Value.X, gemIndex.Value.Y].position.Y
                     );
                     Vector2 originPosition = new Vector2(
-                        BoardState[firstGem.Value.X, firstGem.Value.Y].position.X,
-                        BoardState[firstGem.Value.X, firstGem.Value.Y].position.Y
+                        BoardState[firstSelectedGem.Value.X, firstSelectedGem.Value.Y].position.X,
+                        BoardState[firstSelectedGem.Value.X, firstSelectedGem.Value.Y].position.Y
                     );
                     if (DebugInfoEnabled)
                     {
@@ -286,7 +353,7 @@ namespace Match3Mono
                         new AnimationItem[]
                         {
                             new AnimationItem(
-                                BoardState[firstGem.Value.X, firstGem.Value.Y],
+                                BoardState[firstSelectedGem.Value.X, firstSelectedGem.Value.Y],
                                 AnimationType.Translation,
                                 destinyPosition
                             ),
@@ -302,9 +369,9 @@ namespace Match3Mono
 
                     (
                         tempBoard[gemIndex.Value.X, gemIndex.Value.Y],
-                        tempBoard[firstGem.Value.X, firstGem.Value.Y]
+                        tempBoard[firstSelectedGem.Value.X, firstSelectedGem.Value.Y]
                     ) = (
-                        tempBoard[firstGem.Value.X, firstGem.Value.Y],
+                        tempBoard[firstSelectedGem.Value.X, firstSelectedGem.Value.Y],
                         tempBoard[gemIndex.Value.X, gemIndex.Value.Y]
                     );
 
@@ -320,7 +387,7 @@ namespace Match3Mono
                             new AnimationItem[]
                             {
                                 new AnimationItem(
-                                    BoardState[firstGem.Value.X, firstGem.Value.Y],
+                                    BoardState[firstSelectedGem.Value.X, firstSelectedGem.Value.Y],
                                     AnimationType.Translation,
                                     originPosition
                                 ),
@@ -331,19 +398,20 @@ namespace Match3Mono
                                 ),
                             }
                         );
+                        assetsLoader.GetSoundEffect("sound/BadMove").Play();
                     }
                     else
                     {
                         (
                             BoardState[gemIndex.Value.X, gemIndex.Value.Y],
-                            BoardState[firstGem.Value.X, firstGem.Value.Y]
+                            BoardState[firstSelectedGem.Value.X, firstSelectedGem.Value.Y]
                         ) = (
-                            BoardState[firstGem.Value.X, firstGem.Value.Y],
+                            BoardState[firstSelectedGem.Value.X, firstSelectedGem.Value.Y],
                             BoardState[gemIndex.Value.X, gemIndex.Value.Y]
                         );
                     }
 
-                    firstGem = null;
+                    firstSelectedGem = null;
                 }
             }
         }
@@ -422,7 +490,7 @@ namespace Match3Mono
             }
         }
 
-        public void Update(GameTime gameTime)
+        public override void Update(GameTime gameTime)
         {
             var animationBatch = animationManager.GetAnimationItems();
 
@@ -443,56 +511,61 @@ namespace Match3Mono
                 }
             }
 
-            var matches = GetMatches(BoardState);
-
-            if (matches.Count > 0)
+            if (animationManager.RunningAnimations == 0)
             {
-                int scoreAdd = 0;
+                var matches = GetMatches(BoardState);
 
-                foreach (var match in matches)
+                if (matches.Count > 0)
                 {
-                    List<AnimationItem> batch = new();
+                    int scoreAdd = 0;
 
-                    for (int i = 0; i < match.Length; i++)
+                    foreach (var match in matches)
                     {
-                        if (DebugInfoEnabled)
-                        {
-                            Debug.WriteLine(
-                                "Found Match: ("
-                                    + match[i].X.ToString()
-                                    + ", "
-                                    + match[i].Y.ToString()
-                                    + ")"
-                            );
-                        }
-                        if (!BoardState[match[i].X, match[i].Y].IsQueuedForMatch)
-                        {
-                            scoreAdd += (10 + match.Length - 3) * 10;
-                            BoardState[match[i].X, match[i].Y].QueueForMatch();
+                        List<AnimationItem> batch = new();
 
-                            batch.Add(
-                                new AnimationItem(
-                                    BoardState[match[i].X, match[i].Y],
-                                    AnimationType.Matching
-                                )
-                            );
+                        for (int i = 0; i < match.Length; i++)
+                        {
+                            if (DebugInfoEnabled)
+                            {
+                                Debug.WriteLine(
+                                    "Found Match: ("
+                                        + match[i].X.ToString()
+                                        + ", "
+                                        + match[i].Y.ToString()
+                                        + ")"
+                                );
+                            }
+                            if (!BoardState[match[i].X, match[i].Y].IsQueuedForMatch)
+                            {
+                                scoreAdd += (10 + match.Length - 3) * 10;
+                                BoardState[match[i].X, match[i].Y].QueueForMatch();
+
+                                batch.Add(
+                                    new AnimationItem(
+                                        BoardState[match[i].X, match[i].Y],
+                                        AnimationType.Matching
+                                    )
+                                );
+                            }
+                        }
+
+                        if (batch.Count > 0)
+                        {
+                            if (DebugInfoEnabled)
+                            {
+                                Debug.WriteLine("+++ Matching");
+                            }
+                            int soundIndex = rand.Next(0, swapSounds.Length);
+                            swapSounds[soundIndex].Play();
+                            animationManager.EnqueueAnimation(batch.ToArray());
                         }
                     }
 
-                    if (batch.Count > 0)
-                    {
-                        if (DebugInfoEnabled)
-                        {
-                            Debug.WriteLine("+++ Matching");
-                        }
-                        animationManager.EnqueueAnimation(batch.ToArray());
-                    }
+                    PlayerScore += scoreAdd;
                 }
 
-                PlayerScore += scoreAdd;
+                BubbleEmpty(BoardState);
             }
-
-            BubbleEmpty(BoardState);
 
             for (var x = 0; x < BoardWidth; x++)
             {
@@ -507,15 +580,20 @@ namespace Match3Mono
             }
 
             MouseState mState = Mouse.GetState();
-            HandleClick(Mouse.GetState());
+            HandleClick(mState);
+
+            if (!CanMakeMove(BoardState))
+            {
+                SceneManager.GetInstance().SetScene(new GameOver());
+            }
         }
 
-        public void Draw(SpriteBatch spriteBatch)
+        public override void Draw(SpriteBatch spriteBatch)
         {
             if (DebugInfoEnabled)
             {
                 spriteBatch.DrawString(
-                    font,
+                    assetsLoader.GetFont("fontLg"),
                     "Running "
                         + animationManager.RunningAnimations
                         + "\nEnqueued: "
@@ -528,6 +606,7 @@ namespace Match3Mono
             }
 
             DrawScore(spriteBatch);
+
             for (var x = 0; x < BoardWidth; x++)
             {
                 for (var y = 0; y < BoardHeight; y++)
@@ -538,7 +617,7 @@ namespace Match3Mono
                         if (BoardState[x, y] != null)
                         {
                             spriteBatch.DrawString(
-                                font,
+                                assetsLoader.GetFont("fontSm"),
                                 "(" + x + ", " + y + ")",
                                 new Vector2(
                                     BoardState[x, y].position.X + 10,
@@ -555,11 +634,16 @@ namespace Match3Mono
         private void DrawScore(SpriteBatch spriteBatch)
         {
             spriteBatch.DrawString(
-                font,
+                assetsLoader.GetFont("fontLg"),
                 "Score: " + PlayerScore.ToString(),
                 new Vector2(10, 10),
                 Color.White
             );
+        }
+
+        public override void ToggleDebug()
+        {
+            DebugInfoEnabled = !DebugInfoEnabled;
         }
     }
 }

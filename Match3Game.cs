@@ -8,14 +8,14 @@ namespace Match3Mono
     {
         private readonly GraphicsDeviceManager _graphics;
         private SpriteBatch _spriteBatch;
-        private Texture2D[] piecesTextures;
-        private GameBoard _board;
 
-        private SpriteFont font;
-        private Texture2D background;
+        private bool initialized = false;
 
-        const int ResolutionWidth = 1280;
-        const int ResolutionHeight = 768;
+        private readonly AssetsLoader assetsStore;
+
+        public const int ResolutionWidth = 1280;
+        public const int ResolutionHeight = 768;
+        private SceneManager sceneManager;
 
         public Match3Game()
         {
@@ -27,6 +27,9 @@ namespace Match3Mono
             _graphics.ApplyChanges();
 
             Content.RootDirectory = "Content";
+
+            assetsStore = AssetsLoader.GetInstance(Content.ServiceProvider, Content.RootDirectory);
+
             IsMouseVisible = true;
         }
 
@@ -38,20 +41,42 @@ namespace Match3Mono
         protected override void LoadContent()
         {
             _spriteBatch = new SpriteBatch(GraphicsDevice);
-            piecesTextures = new Texture2D[]
-            {
-                Content.Load<Texture2D>("gems/black"),
-                Content.Load<Texture2D>("gems/blue"),
-                Content.Load<Texture2D>("gems/green"),
-                Content.Load<Texture2D>("gems/grey"),
-                Content.Load<Texture2D>("gems/orange"),
-                Content.Load<Texture2D>("gems/pink"),
-                Content.Load<Texture2D>("gems/red"),
-                Content.Load<Texture2D>("gems/yellow"),
-            };
 
-            background = Content.Load<Texture2D>("sky");
-            font = Content.Load<SpriteFont>("galleryFont");
+            assetsStore.LoadTextureList(
+                "gems",
+                new string[]
+                {
+                    "gems/black",
+                    "gems/blue",
+                    "gems/green",
+                    "gems/grey",
+                    "gems/orange",
+                    "gems/pink",
+                    "gems/red",
+                    "gems/yellow",
+                }
+            );
+
+            assetsStore.LoadTexture("ui/background");
+            assetsStore.LoadTexture("ui/button");
+
+            assetsStore.LoadFont("fontSm");
+            assetsStore.LoadFont("fontLg");
+            assetsStore.LoadFont("fontXl");
+
+            assetsStore.LoadSoundEffect("sound/Menu");
+            assetsStore.LoadSoundEffect("sound/Level1");
+            assetsStore.LoadSoundEffect("sound/Level2");
+            assetsStore.LoadSoundEffect("sound/Level3");
+            assetsStore.LoadSoundEffect("sound/Credits");
+
+            assetsStore.LoadSoundEffect("sound/BadMove");
+            assetsStore.LoadSoundEffectList(
+                "sound/Swap",
+                new string[] { "sound/Swap00", "sound/Swap01", "sound/Swap02", "sound/Swap03", }
+            );
+
+            initialized = true;
         }
 
         protected override void Update(GameTime gameTime)
@@ -62,17 +87,22 @@ namespace Match3Mono
             )
                 Exit();
 
-            if (Keyboard.GetState().IsKeyDown(Keys.F2))
+            if (initialized && sceneManager == null)
             {
-                _board = new GameBoard(piecesTextures, font);
+                sceneManager = SceneManager.GetInstance();
             }
 
-            if (Keyboard.GetState().IsKeyDown(Keys.F3) && _board != null)
+            if (Keyboard.GetState().IsKeyDown(Keys.F2) && sceneManager != null)
             {
-                _board.DebugInfoEnabled = !_board.DebugInfoEnabled;
+                sceneManager.SetScene(new GameOver());
             }
 
-            _board?.Update(gameTime);
+            if (Keyboard.GetState().IsKeyDown(Keys.F3) && sceneManager != null)
+            {
+                sceneManager.ToggleDebug();
+            }
+
+            sceneManager?.Update(gameTime);
 
             base.Update(gameTime);
         }
@@ -82,12 +112,12 @@ namespace Match3Mono
             GraphicsDevice.Clear(Color.CornflowerBlue);
             _spriteBatch.Begin();
             _spriteBatch.Draw(
-                background,
+                assetsStore.GetTexture("ui/background"),
                 new Rectangle(0, 0, ResolutionWidth, ResolutionHeight),
                 Color.White
             );
 
-            _board?.Draw(_spriteBatch);
+            sceneManager?.Draw(_spriteBatch);
 
             _spriteBatch.End();
             base.Draw(gameTime);
