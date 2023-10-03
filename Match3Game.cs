@@ -92,11 +92,6 @@ namespace Match3Mono
                 sceneManager = SceneManager.GetInstance();
             }
 
-            if (Keyboard.GetState().IsKeyDown(Keys.F2) && sceneManager != null)
-            {
-                sceneManager.SetScene(new GameOver());
-            }
-
             if (Keyboard.GetState().IsKeyDown(Keys.F3) && sceneManager != null)
             {
                 sceneManager.ToggleDebug();

@@ -12,7 +12,14 @@ namespace Match3Mono
         private bool hovered = false;
         private bool clicked = false;
         private readonly AssetsLoader assetsStore;
-        private SoundEffectInstance music;
+        private readonly SoundEffectInstance music;
+        private Rectangle newGameButtonBounds =
+            new(
+                Match3Game.ResolutionWidth / 2 - 380 / 2,
+                Match3Game.ResolutionHeight / 2 - 98 / 2,
+                380,
+                98
+            );
 
         public MainMenu()
         {
@@ -26,6 +33,7 @@ namespace Match3Mono
         public override void Destroy()
         {
             music.Stop();
+            Mouse.SetCursor(MouseCursor.Arrow);
         }
 
         public override void Draw(SpriteBatch spriteBatch)
@@ -45,12 +53,7 @@ namespace Match3Mono
 
             spriteBatch.Draw(
                 assetsStore.GetTexture("ui/button"),
-                new Rectangle(
-                    Match3Game.ResolutionWidth / 2 - 380 / 2,
-                    Match3Game.ResolutionHeight / 2 - 98 / 2,
-                    380,
-                    98
-                ),
+                newGameButtonBounds,
                 hovered ? Color.Purple : Color.White
             );
             spriteBatch.DrawString(
@@ -77,10 +80,10 @@ namespace Match3Mono
             Point mousePos = mouseState.Position;
 
             if (
-                mousePos.X > (Match3Game.ResolutionWidth / 2 - 380 / 2)
-                && mousePos.X < (Match3Game.ResolutionWidth / 2 + 380 / 2)
-                && mousePos.Y > (Match3Game.ResolutionHeight / 2 - 98 / 2)
-                && mousePos.Y < (Match3Game.ResolutionHeight / 2 + 98 / 2)
+                mousePos.X > newGameButtonBounds.Left
+                && mousePos.X < newGameButtonBounds.Right
+                && mousePos.Y > newGameButtonBounds.Top
+                && mousePos.Y < newGameButtonBounds.Bottom
             )
             {
                 hovered = true;

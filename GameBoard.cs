@@ -19,7 +19,7 @@ namespace Match3Mono
         private Gem[,] BoardState;
         private readonly AnimationManager animationManager = new();
         private readonly Random rand = new();
-        private AssetsLoader assetsLoader;
+        private readonly AssetsLoader assetsLoader;
         public int PlayerScore = 0;
 
         public bool DebugInfoEnabled = false;
@@ -28,10 +28,10 @@ namespace Match3Mono
         private Point? firstSelectedGem = null;
 
         private string _playedAnimation = "";
-        private Point[][] oneOffPatterns;
+        private readonly Point[][] oneOffPatterns;
 
-        private SoundEffect[] swapSounds;
-        private SoundEffectInstance music;
+        private readonly SoundEffect[] swapSounds;
+        private readonly SoundEffectInstance music;
 
         public GameBoard()
         {
@@ -337,14 +337,20 @@ namespace Match3Mono
                     BoardState[firstSelectedGem.Value.X, firstSelectedGem.Value.Y].SetSelected(
                         false
                     ); // Clean selected status
-                    Vector2 destinyPosition = new Vector2(
-                        BoardState[gemIndex.Value.X, gemIndex.Value.Y].position.X,
-                        BoardState[gemIndex.Value.X, gemIndex.Value.Y].position.Y
-                    );
-                    Vector2 originPosition = new Vector2(
-                        BoardState[firstSelectedGem.Value.X, firstSelectedGem.Value.Y].position.X,
-                        BoardState[firstSelectedGem.Value.X, firstSelectedGem.Value.Y].position.Y
-                    );
+                    Vector2 destinyPosition =
+                        new(
+                            BoardState[gemIndex.Value.X, gemIndex.Value.Y].position.X,
+                            BoardState[gemIndex.Value.X, gemIndex.Value.Y].position.Y
+                        );
+                    Vector2 originPosition =
+                        new(
+                            BoardState[firstSelectedGem.Value.X, firstSelectedGem.Value.Y]
+                                .position
+                                .X,
+                            BoardState[firstSelectedGem.Value.X, firstSelectedGem.Value.Y]
+                                .position
+                                .Y
+                        );
                     if (DebugInfoEnabled)
                     {
                         Debug.WriteLine("+++ Swap");
@@ -443,7 +449,7 @@ namespace Match3Mono
                 {
                     if (gemsInColumn.Count > 0)
                     {
-                        var lastGem = gemsInColumn[gemsInColumn.Count - 1];
+                        var lastGem = gemsInColumn[^1];
                         gemsInColumn.RemoveAt(gemsInColumn.Count - 1);
                         int nextPosition = MarginY + (y * (Gem.GemSize + Padding));
 

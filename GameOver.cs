@@ -65,7 +65,7 @@ namespace Match3Mono
                 0f
             );
 
-            string newGameTxt = "New Game?";
+            string newGameTxt = "< Main Menu";
             var newGameOrigin = Vector2.Divide(fontLg.MeasureString(newGameTxt), 2);
 
             if (hovered)
@@ -117,6 +117,11 @@ namespace Match3Mono
             else
             {
                 hovered = false;
+            }
+
+            if (hovered && mState.LeftButton == ButtonState.Pressed)
+            {
+                SceneManager.GetInstance().SetScene(new MainMenu());
             }
         }
     }

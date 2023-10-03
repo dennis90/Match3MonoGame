@@ -9,12 +9,11 @@ namespace Match3Mono
 {
     internal class AssetsLoader : ContentManager
     {
-        private Dictionary<string, Texture2D> texture2dMap;
-        private Dictionary<string, Texture2D[]> texture2dList;
-        private Dictionary<string, SpriteFont> spriteFontMap;
-        private Dictionary<string, SoundEffect> soundEffectMap;
-        private Dictionary<string, Song> songMap;
-        private Dictionary<string, SoundEffect[]> soundEffectList;
+        private readonly Dictionary<string, Texture2D> texture2dMap;
+        private readonly Dictionary<string, Texture2D[]> texture2dList;
+        private readonly Dictionary<string, SpriteFont> spriteFontMap;
+        private readonly Dictionary<string, SoundEffect> soundEffectMap;
+        private readonly Dictionary<string, SoundEffect[]> soundEffectList;
 
         private static AssetsLoader instance;
 
@@ -26,7 +25,6 @@ namespace Match3Mono
             spriteFontMap = new();
             soundEffectMap = new();
             soundEffectList = new();
-            songMap = new();
         }
 
         public static AssetsLoader GetInstance(
@@ -34,10 +32,7 @@ namespace Match3Mono
             string rootDirectory
         )
         {
-            if (instance == null)
-            {
-                instance = new AssetsLoader(serviceProvider, rootDirectory);
-            }
+            instance ??= new AssetsLoader(serviceProvider, rootDirectory);
             return instance;
         }
 
@@ -75,15 +70,6 @@ namespace Match3Mono
             if (sound != null)
             {
                 soundEffectMap.Add(path, sound);
-            }
-        }
-
-        public void LoadSong(string path)
-        {
-            var sound = Load<Song>(path);
-            if (sound != null)
-            {
-                songMap.Add(path, sound);
             }
         }
 
@@ -157,15 +143,6 @@ namespace Match3Mono
             if (soundEffectMap.ContainsKey(path))
             {
                 return soundEffectMap[path];
-            }
-            return null;
-        }
-
-        public Song GetSong(string path)
-        {
-            if (songMap.ContainsKey(path))
-            {
-                return songMap[path];
             }
             return null;
         }

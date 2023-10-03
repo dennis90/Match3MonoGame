@@ -17,10 +17,7 @@ namespace Match3Mono
 
         public static SceneManager GetInstance()
         {
-            if (_sceneManager == null)
-            {
-                _sceneManager = new SceneManager();
-            }
+            _sceneManager ??= new SceneManager();
 
             return _sceneManager;
         }

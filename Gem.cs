@@ -13,7 +13,6 @@ namespace Match3Mono
 
         // Callbacks
         private readonly Action onAnimationCompleted;
-        private Action onMatchCompleted;
 
         // Events control
         private bool animating = false;
@@ -213,7 +212,6 @@ namespace Match3Mono
             matching = false;
             spriteIndex = -1;
             animating = false;
-            onMatchCompleted?.Invoke();
         }
     }
 }
